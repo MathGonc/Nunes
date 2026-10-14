@@ -1,8 +1,13 @@
 # Integração da Folha — Como era × Como vai ficar
 ### Domínio ⇄ RP Info por arquivos (hoje) → TOTVS RM ⇄ RP Info por API (futuro)
 
-> **Diagramas desta pasta:** [COMO-ERA.drawio](COMO-ERA.drawio) · [COMO-VAI-FICAR.drawio](COMO-VAI-FICAR.drawio)
-> (abrir no [draw.io](https://app.diagrams.net) ou na extensão Draw.io do VS Code).
+> **Diagramas desta pasta** (abrir no [draw.io](https://app.diagrams.net) ou na extensão Draw.io do VS Code):
+>
+> | Diagrama | Para quem |
+> |---|---|
+> | [COMO_ERA.drawio](COMO_ERA.drawio) | Todos: o processo de hoje, com os 15 retrabalhos numerados |
+> | [COMO_VAI_(SIMPLES).drawio](<COMO_VAI_(SIMPLES).drawio>) | Público geral: como fica, sem termos técnicos |
+> | [COMO_VAI_(API).drawio](<COMO_VAI_(API).drawio>) | Equipe técnica: os caminhos de API, do nosso servidor até o RP Info e o RM |
 >
 > Os números são do fechamento de **agosto/2026**, contados nos arquivos reais do projeto.
 > Os passos vêm do POP da folha (pasta `0-POP`) e do POP de fechamento do convênio (pasta `1-Atividade`).
@@ -45,7 +50,7 @@ Três trocas de informação, todas feitas à mão:
 
 ### Os 15 retrabalhos
 
-Numerados como nas bolinhas vermelhas do diagrama [COMO-ERA.drawio](COMO-ERA.drawio).
+Numerados como nas bolinhas vermelhas do diagrama [COMO_ERA.drawio](COMO_ERA.drawio).
 
 | # | Retrabalho | Onde | Frequência |
 |:---:|---|---|---|
@@ -134,6 +139,39 @@ refeito todo mês.
 - **Classificar uma rubrica nova**, uma única vez, no cadastro (hoje são até 17 configurações).
 - **Manter as tabelas** que dizem “esta loja/conta do RM é aquela do RP Info”. Elas precisam ser
   refeitas uma vez para o RM, com a Controladoria. É o maior esforço novo do projeto.
+
+---
+
+## Os caminhos de API
+
+Detalhe no diagrama [COMO_VAI_(API).drawio](<COMO_VAI_(API).drawio>).
+
+- **Nosso servidor:** um único servidor, `https://integra.nunes.local/api/v1`. Endereço e caminhos são
+  **propostos (fictícios)**.
+- **RP Info:** caminhos da documentação pública *RP Services* v2.0.89.
+- **TOTVS RM:** padrão `wsDataServer` da TOTVS. O DataServer exato será definido com o implantador (S6).
+
+| Fluxo | Nosso caminho | Chama | Nosso caminho vai existir? |
+|---|---|---|:---:|
+| Acesso | credenciais guardadas no servidor | RP Info `POST /v1.2/auth` · usuário de serviço no RM (S6) | ✅ |
+| Folha | `POST /eventos/rm/folha-fechada` | recebe o aviso do RM | ❓ S7 |
+| Folha | `POST /folha/{competencia}/iniciar` | RM `/wsDataServer/IwsDataServer` · `ReadView` (S5, S6) | ✅ |
+| Folha | `POST /folha/{competencia}/validar` | usa os caminhos de funcionários e cadastros | ✅ |
+| Folha | `POST /folha/{competencia}/aprovar` | — (uma pessoa aprova) | ✅ |
+| Folha | `POST /folha/{competencia}/enviar` | RP Info `POST /v1.0/fde` | ❓ S1, S3 |
+| Folha | `GET /folha/{competencia}/arquivo` | — plano B: arquivo importado sem planilha | ❓ só se S1 = não |
+| Folha | `GET /folha/{competencia}/conferencia` | RP Info `GET /v1.0/contabil/movimentos` | ✅ |
+| Folha | `POST /folha/{competencia}/estornar` | RP Info `PUT /v1.0/documento/cancelar` | ❓ S2 |
+| Folha | `POST /folha/{competencia}/pos-importacao` | RP Info `POST /v2.0/financeiro/pendenciasFinanceiras/baixarPendenciaFin` | ❓ N2 |
+| Funcionários | `GET /colaboradores/{cpf}` | RP Info `GET /v1.2/funcionario/codcpf/{codcpf}` | ✅ |
+| Funcionários | `POST /colaboradores` | RP Info `POST /v1.0/funcionario` | ❓ C4 |
+| Cadastros | `GET · PUT /cadastros/de-para/{lojas\|contas}` | RP Info `GET /v1.1/financeiro/planocontas` | ✅ |
+| Pendências | `POST /pendencias/{competencia}/sincronizar` | RP Info `GET /v1.6/financeiro/pendenciasFinanceiras/…` → RM `SaveRecord` `FopLancExternoData` | ❓ N6, S8 |
+| Pendências | `POST /pendencias/{competencia}/baixar` | RP Info `POST /v2.0/financeiro/pendenciasFinanceiras/baixarPendenciaFin` | ❓ N2 |
+| Sempre | `GET /execucoes/{id}` · `GET /saude` | — (histórico de cada execução) | ✅ |
+
+**7 caminhos nossos são certos**, porque só dependem de nós. **8 ainda falta validar.** Cada um
+depende da pergunta indicada, e `/enviar` e `/arquivo` se excluem: só um dos dois vai existir.
 
 ---
 
